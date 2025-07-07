@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Spatie\Permission\Models\Role;
 use App\Http\Controllers\Controller;
 
+
 class RoleController extends Controller
 {
     /**
@@ -16,6 +17,7 @@ class RoleController extends Controller
         $search = $request->get('search');
         $roles = Role::where('name', 'like', "%{$search}%")->orderBy('id', 'desc')->paginate(25);
 
+        
         return response()->json([
             "total" => $roles->total(),
             "pagination" => 25,
