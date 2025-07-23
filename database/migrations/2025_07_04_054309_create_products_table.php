@@ -15,6 +15,7 @@ return new class extends Migration
             $table->id();
             $table->string('name');
             $table->string('sku')->unique();
+            $table->string('imagen')->nullable()->comment('Product image');
             $table->foreignId('category_id')->constrained('categories')->onDelete('cascade');
             $table->decimal('price_general', 10, 2)->default(0.00);
             $table->decimal('price_company', 10, 2)->default(0.00);
@@ -46,5 +47,5 @@ return new class extends Migration
     }
 
 
-    
+
 };

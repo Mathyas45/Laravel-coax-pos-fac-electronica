@@ -14,6 +14,7 @@ use SoftDeletes;
     protected $fillable = [
         'name',
         'sku',
+        'imagen',
         'categorie_id',
         'price_general',
         'price_company',
@@ -32,7 +33,7 @@ use SoftDeletes;
         'is_especial_nota',
         'fecha_vencimiento'
     ];
-    
+
      public function setCreatedAtAttribute($value)
     {
         date_default_timezone_set('America/Lima');

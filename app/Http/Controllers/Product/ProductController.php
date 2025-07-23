@@ -1,4 +1,4 @@
-<!-- <?php
+<?php
 
 namespace App\Http\Controllers\Product;
 
@@ -15,69 +15,62 @@ class ProductController extends Controller
         $state = $request->input('state');
         $unidad_medida = $request->input('unidad_medida');
 
-        $products = Product::whereRaw("
-            CONCAT(
-                products.name, ' ',
-                IFNULL(products.sku, ' '), ' ',
-                IFNULL(products.price_general, ' '), ' ',
-                IFNULL(products.price_company, ' '), ' ',
-                IFNULL(products.description, ' '), ' ',
-                IFNULL(products.unidad_medida, ' '), ' ',
-                IFNULL(products.stock, ' '), ' ',
-                IFNULL(products.stock_minimo, ' '), ' ',
-                IFNULL(products.fecha_vencimiento, ' ')
-            ) LIKE ?", "%{$search}%")
-        ->orderBy("id", "desc")
-        ->paginate(25);
+        $products = Product::filterAdvance(
+            $search,
+            $categorie_id,
+            $state,
+            $unidad_medida
+        )->orderBy('id', 'desc')->paginate(25);
         return response()->json([
             "total" => $products->total(),
             "pagination" => 25,
             "products" => ProductCollection::make($products),
         ]);
     }
-        return response()->json([
-            "total" => $products->total(),
-            "pagination" => 25,
-            "prod$products" => UserCollection::make($products),
-            "roles" => $roles->map(function ($role) {
-                return [
-                    'id' => $role->id,
-                    'name' => $role->name,
-                ];
-            }),
-        ]);
-    }
-   
+
 
     /**
      * Store a newly created resource in storage.
      */
     public function store(Request $request)
     {
-        $is_exists = User::where('email', $request->email)->first();
-
+        $is_exists = User::where('name', $request->name)->first();
         if ($is_exists) {
             return response()->json([
                 "code" => 409,
-                "message" => "Un usuario ya existe con ese correo electrónico"
+                "message" => "Un  producto ya existe con ese nombre"
             ]); // Return a 400 Bad Request response
         }
-        if($request ->hasFile("imagen")){
-            $path = Storage::putFile("users", $request->file("imagen"));
-            $request->merge(['avatar' => $path]);
-        }
-        if ($request->password) {
-            $request->request->add(['password' => bcrypt($request->password)]);
+        $exist_sku = Product::where('sku', $request->sku)->first();
+        if ($exist_sku) {
+            return response()->json([
+                "code" => 409,
+                "message" => "Un producto ya existe con ese sku"
+            ]);
         }
 
-        $user = User::create($request->all());
-        $role = Role::findOrFail($request->role_id);
-        $user->assignRole($role);
+        if($request ->hasFile("image")){
+            $path = Storage::putFile("products", $request->file("image"));
+            $request->merge(['imagen' => $path]);
+        }
+
+        $product = Product::create($request->all());
 
         return response()->json([
             "code" => 201,
-            "message" => "Usuario creado correctamente",
-            "user" => UserResource::make($user)
+            "message" => "Producto creado correctamente",
+        ]);
+    }
+    
+    public function config(){
+        $categories = Categorie::where('state', 1)->get();
+        return response()->json([
+            "categories" => $categories->map(function ($categorie) {
+                return [
+                    'id' => $categorie->id,
+                    'name' => $categorie->name,
+                ];
+            }),
         ]);
     }
 
@@ -86,7 +79,10 @@ class ProductController extends Controller
      */
     public function show(string $id)
     {
-        //
+        $product = Product::findOrFail($id);
+        return response()->json([
+           "product" =>ProductResource::make($product),
+        ]);
     }
 
     /**
@@ -94,41 +90,34 @@ class ProductController extends Controller
      */
     public function update(Request $request, string $id)
     {
-          $is_exists = User::where('email', $request->email)->where('id', '<>', $id)->first();
-
+          $is_exists = User::where("id", "<>", $id)->where('name', $request->name)->first();
         if ($is_exists) {
             return response()->json([
                 "code" => 409,
-                "message" => "Un usuario ya existe con ese correo electrónico"
+                "message" => "Un  producto ya existe con ese nombre"
             ]); // Return a 400 Bad Request response
         }
-        $user = User::findOrFail($id);
-        if($request ->hasFile("imagen")){
-            if ($user->avatar) {
-                Storage::delete($user->avatar);
-            }
-            $path = Storage::putFile("users", $request->file("imagen"));
-            $request->request->add(['avatar' => $path]);
+        $exist_sku = Product::where("id", "<>", $id)->where('sku', $request->sku)->first();
+        if ($exist_sku) {
+            return response()->json([
+                "code" => 409,
+                "message" => "Un producto ya existe con ese sku"
+            ]);
         }
-        // actualizar password si es que viene nuevo
-        $password_limpio = $request->password ? trim($request->password) : null;
-        if ($password_limpio) {
-            $request->request->add(['password' => bcrypt($password_limpio)]);
-        } else {
-            unset($request['password']);
+        $product_image_exist = Product::findOrFail($id);
+        if($request ->hasFile("image")){
+            if($product_image_exist -> imagen) {
+                Storage::delete($product_image_exist->imagen);
+            }
+            $path = Storage::putFile("products", $request->file("image"));
+            $request->merge(['imagen' => $path]);
         }
 
-        if($user -> role_id != $request->role_id){
-            $user->removeRole($user->role_id);
-            $role = Role::findOrFail($request->role_id);
-            $user->assignRole($role);
-        }
-        
-        $user->update($request->all());
+        $product = Product::update($request->all());
+
         return response()->json([
             "code" => 201,
-            "message" => "Usuario editado  correctamente",
-            "user" => UserResource::make($user)
+            "message" => "Producto actualizado correctamente",
         ]);
     }
 
@@ -137,14 +126,14 @@ class ProductController extends Controller
      */
     public function destroy(string $id)
     {
-        $user = User::findOrFail($id);
-        if ($user->avatar) {
-            Storage::delete($user->avatar);
+        $product = Product::findOrFail($id);
+        if ($product->imagen) {
+            Storage::delete($product->imagen);
         }
-        $user->delete();
+        $product->delete();
         return response()->json([
             "code" => 200,
-            "message" => "Usuario eliminado correctamente"
+            "message" => "Producto eliminado correctamente"
         ]);
     }
-} -->
+}

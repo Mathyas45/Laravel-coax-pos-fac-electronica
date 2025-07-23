@@ -1,5 +1,5 @@
 <?php
- 
+
 use App\Models\Product\Categorie;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
@@ -26,6 +26,14 @@ Route::group([
     Route::resource('users', UserController::class);
 
     Route::resource('company', CompanyController::class);
+
     Route::resource('categories', CategorieController::class);
     Route::post('categories/{id}', [CategorieController::class, 'update']);
+
+    Route::resource('products', ProductController::class);
+
+    Route::get('products/config', [ProductController::class, 'config']);
+    Route::post('products/{id}', [ProductController::class, 'update']);
+
+
 });
