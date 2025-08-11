@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Log;
+use PHPOpenSourceSaver\JWTAuth\Facades\JWTAuth;
   
   
 class AuthController extends Controller
@@ -81,7 +83,64 @@ class AuthController extends Controller
      */
     public function refresh()
     {
-        return $this->respondWithToken(auth("api")->refresh());
+        return $this->respondWithToken(JWTAuth::refresh(JWTAuth::getToken()));
+    }
+
+    /**
+     * Refresh token for inactivity system
+     * Endpoint específico para el sistema de inactividad del frontend
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function refreshToken()
+    {
+        try {
+            // Verificar que el usuario esté autenticado
+            $user = auth("api")->user();
+            
+            if (!$user) {
+                return response()->json([
+                    'error' => 'Token inválido o expirado'
+                ], 401);
+            }
+            
+            // Generar nuevo token usando JWTAuth
+            $newToken = JWTAuth::refresh(JWTAuth::getToken());
+            
+            // Opcional: Log de actividad
+            Log::info("Token renovado para usuario: " . $user->id . " (" . $user->email . ")");
+            
+            // Obtener permisos del usuario
+            $permissions = $user->getAllPermissions()->map(function ($permission) {
+                return $permission->name;
+            });
+            
+            return response()->json([
+                'token' => $newToken,
+                'expires_in' => config('jwt.ttl') * 60,
+                'user' => [
+                    "id" => $user->id,
+                    "full_name" => $user->name,
+                    "email" => $user->email,
+                    "role" => [
+                        'id' => $user->role->id,
+                        'name' => $user->role->name,
+                    ],
+                    "permissions" => $permissions,
+                    "token" => $newToken, // Incluir token en user para compatibilidad
+                ],
+                'message' => 'Token renovado exitosamente',
+                'renewed_at' => now()->toISOString()
+            ]);
+            
+        } catch (\Exception $e) {
+            Log::error("Error renovando token: " . $e->getMessage());
+            
+            return response()->json([
+                'error' => 'No se pudo renovar el token',
+                'message' => 'Por favor, inicia sesión nuevamente'
+            ], 401);
+        }
     }
   
     /**
@@ -100,7 +159,7 @@ class AuthController extends Controller
         return response()->json([
             'access_token' => $token,
             'token_type' => 'bearer',
-            'expires_in' => auth("api")->factory()->getTTL() * 60,
+            'expires_in' => config('jwt.ttl') * 60,
             'user' => [
                 "full_name" => auth("api")->user()->name,
                 "email" => auth("api")->user()->email,

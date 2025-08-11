@@ -29,7 +29,8 @@ use SoftDeletes;
         'include_igv',
         'is_icbper',
         'is_ivap',
-        'porcentaje_isc',
+        'is_isc',
+        'percentage_isc',
         'is_especial_nota',
         'fecha_vencimiento'
     ];
@@ -49,6 +50,21 @@ use SoftDeletes;
         return $this->belongsTo(Categorie::class, 'categorie_id');
     }
 
+    public function batches()
+    {
+        return $this->hasMany(ProductBatch::class);
+    }
+
+    public function activeBatches()
+    {
+        return $this->hasMany(ProductBatch::class)->where('is_active', true);
+    }
+
+    public function getTotalStockAttribute()
+    {
+        return $this->batches()->where('is_active', true)->sum('current_stock');
+    }
+
    public function getProductImagenAttribute()
     {
         $link = null;
@@ -64,7 +80,7 @@ use SoftDeletes;
 
     public function scopeFilterAdvance($query,$search_product,$categorie_id,$state,$unidad_medida){
         if($search_product){
-            $query->where(DB::raw("CONCAT(products.title,' ',products.sku)"),"like","%".$search_product."%");
+            $query->where(DB::raw("CONCAT(products.name,' ',products.sku)"),"like","%".$search_product."%");
         }
         if($categorie_id){
             $query->where("categorie_id",$categorie_id);

@@ -30,7 +30,8 @@ return new class extends Migration
             $table->tinyInteger('include_igv')->default(0)->comment('1 = Include I.V.A, 0 = Exclude I.V.A');
             $table->tinyInteger('is_icbper')->default(0)->comment('1 = ICBPER included, 0 = ICBPER not included');
             $table->tinyInteger('is_ivap')->default(0)->comment('1 = IVAP included, 0 = IVAP not included');
-            $table->double('porcentaje_isc')->default(0)->comment('Percentage of ISC (Impuesto Selectivo al Consumo)');
+            $table->tinyInteger('is_isc')->default(0)->comment('1 = ISC included, 0 = ISC not included');
+            $table->double('percentage_isc')->default(0)->comment('Percentage of ISC (Impuesto Selectivo al Consumo)');
             $table->tinyInteger('is_especial_nota')->default(0)->comment('1 = Special note included, 0 = Special note not included');
             $table->date('fecha_vencimiento')->nullable()->comment('Expiration date');
             $table->timestamps();

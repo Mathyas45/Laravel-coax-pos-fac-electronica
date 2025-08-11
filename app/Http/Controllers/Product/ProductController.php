@@ -4,12 +4,20 @@ namespace App\Http\Controllers\Product;
 
 use App\Http\Controllers\Controller;
 use App\Models\Product\Product;
+use App\Models\Product\ProductBatch;
+use App\Models\User;
+use App\Models\Product\Categorie;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\DB;
+use App\Http\Resources\Product\ProductCollection;
+use App\Http\Resources\Product\ProductResource;
 
 class ProductController extends Controller
 {
      public function index(Request $request)
     {
+        try {
         $search = $request->input('search');
         $categorie_id = $request->input('categorie_id');
         $state = $request->input('state');
@@ -26,6 +34,12 @@ class ProductController extends Controller
             "pagination" => 25,
             "products" => ProductCollection::make($products),
         ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            "code" => 500,
+            "message" => "Error al obtener los productos" . $e->getMessage()
+        ]);
+    }
     }
 
 
@@ -34,11 +48,11 @@ class ProductController extends Controller
      */
     public function store(Request $request)
     {
-        $is_exists = User::where('name', $request->name)->first();
+        $is_exists = Product::where('name', $request->name)->first();
         if ($is_exists) {
             return response()->json([
                 "code" => 409,
-                "message" => "Un  producto ya existe con ese nombre"
+                "message" => "Un producto ya existe con ese nombre"
             ]); // Return a 400 Bad Request response
         }
         $exist_sku = Product::where('sku', $request->sku)->first();
@@ -55,14 +69,25 @@ class ProductController extends Controller
         }
 
         $product = Product::create($request->all());
-
+        if (!$product) {
+            return response()->json([
+                "code" => 500,
+                "message" => "Error al crear el producto"
+            ]);
+        }
+        
+        // Cargar las relaciones necesarias para el producto
+        $product->load('categorie');
+        
         return response()->json([
             "code" => 201,
             "message" => "Producto creado correctamente",
+            "product" => $product
         ]);
     }
     
     public function config(){
+        // error_log("Fetching product configuration");
         $categories = Categorie::where('state', 1)->get();
         return response()->json([
             "categories" => $categories->map(function ($categorie) {
@@ -81,7 +106,9 @@ class ProductController extends Controller
     {
         $product = Product::findOrFail($id);
         return response()->json([
-           "product" =>ProductResource::make($product),
+            "code" => 200,
+            "message" => "Producto encontrado",
+            "product" =>ProductResource::make($product),
         ]);
     }
 
@@ -90,7 +117,7 @@ class ProductController extends Controller
      */
     public function update(Request $request, string $id)
     {
-          $is_exists = User::where("id", "<>", $id)->where('name', $request->name)->first();
+          $is_exists = Product::where("id", "<>", $id)->where('name', $request->name)->first();
         if ($is_exists) {
             return response()->json([
                 "code" => 409,
@@ -113,7 +140,7 @@ class ProductController extends Controller
             $request->merge(['imagen' => $path]);
         }
 
-        $product = Product::update($request->all());
+        $product_image_exist->update($request->all());
 
         return response()->json([
             "code" => 201,
